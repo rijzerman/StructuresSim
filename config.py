@@ -1,0 +1,7 @@
+import datetime
+
+PRODUCTIONORDERS_PER_DAY = 6*8
+MES_QUEUE_FIXED = 3 # DAYS
+STARTDATE = datetime.date(2022, 3, 13)
+WINDOW = 10 # DAYS
+DELTA = 15 #DAYS
