@@ -1,5 +1,5 @@
 from Orders import ProductionOrder
-from config import PRODUCTIONORDERS_PER_DAY, WINDOW, stockyard_times, PERC_CHANGE, BUCKET
+from config import PRODUCTION_ORDERS_PER_DAY, WINDOW, stockyard_times, PERC_CHANGE, BUCKET
 import datetime
 import random
 
@@ -9,7 +9,7 @@ def create_day(so_nr, po_nr, date):
     po_nr = po_nr
     so_nr = so_nr
     element_type = 50
-    for i in range(PRODUCTIONORDERS_PER_DAY):
+    for i in range(PRODUCTION_ORDERS_PER_DAY):
         po_nr += 1
         po = ProductionOrder(po_nr, so_nr, date, element_type)
         if po_nr % 3 == 0:
@@ -38,6 +38,7 @@ def change_production_orders(mes, sales_order, dates):
         if po.s_id == sales_order:
             po.finish_date_mes = change_to_date
             po.changed_by_arjen = True
+            po.calc_start_date_mes()
 
     return mes
 
@@ -78,7 +79,7 @@ def send_to_mes(erp, mes, date):
     return mes
 
 
-def simulate_day(erp, mes, started, completed, date):
+def simulate_day(erp, mes, started, completed, on_transport, delivered, date):
     po_number = len(erp)
     print(po_number)
     if len(erp) == 0:
@@ -93,17 +94,41 @@ def simulate_day(erp, mes, started, completed, date):
 
     # check started
     for po in reversed(mes):
+
+        # VRIJGAVE MES
         delta = 1
-        if datetime.date.weekday(po.finish_date_mes) == 0:
+        if datetime.date.weekday(po.start_date_mes) == 0:
             delta = 3
-        check_date_started = po.finish_date_mes - datetime.timedelta(days=delta)
+        check_date_released = po.start_date_mes - datetime.timedelta(days=delta)
+        if check_date_released == date:
+            po.status = 'Vrijgegeven'
+
+        # START MES
+        check_date_started = po.start_date_mes
+
         if check_date_started == date:
+            po.status = 'Begonnen'
             started.append(po)
             mes.remove(po)
 
     for po in reversed(started):
         if po.finish_date_mes <= date:   # verwijderd: + datetime.timedelta(days=1)
+            po.status = 'Gereed gemeld'
             completed.append(po)
             started.remove(po)
 
-    return erp, mes, started, completed
+    for po in reversed(completed):
+        if po.transport_date == date:
+            on_transport.append(po)
+            completed.remove(po)
+
+    for po in reversed(on_transport):
+        if po.delivery_date == date:
+            po.status = 'Gereed'
+            delivered.append(po)
+            on_transport.remove(po)
+
+
+    mes.sort(key=lambda x: x.finish_date_mes, reverse=False)
+
+    return erp, mes, started, completed, on_transport, delivered
